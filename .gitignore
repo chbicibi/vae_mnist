@@ -1,0 +1,10 @@
+*.sh
+*.ini
+*.mp4
+*.png
+*.gif
+__*__
+__*__/
+config/
+data/
+result/
