@@ -24,6 +24,8 @@ import myutils as ut
 import common as C_
 import dataset as D_
 import model as M_
+import vis as V_
+from train_vae import check_snapshot
 
 
 # パス
@@ -35,57 +37,6 @@ SRC_FILENAME = os.path.splitext(SRC_FILE)[0]
 ################################################################################
 # 学習
 ################################################################################
-
-def plot_loss_ex(trainer):
-    fig, ax = plt.subplots()
-    for d in ['top', 'right']:
-        ax.spines[d].set_visible(False)
-    ylim_low = float('inf')
-    ylim_upp = 0
-
-    try:
-        with ut.chdir(trainer.out):
-            if not os.path.isfile('log.json'):
-                return
-
-            log = ut.load('log.json', from_json=True)
-
-            for key in ('main/loss', 'val/main/loss'):
-                a = np.array([l[key] for l in log])
-                a = np.clip(a, 0, 1e6)
-
-                ax.plot(a, label=key)
-                ylim_upp = max(np.ceil(np.max(a[min(len(a)-1,3):50]))/1000*1000,
-                               ylim_upp)
-                ylim_low = min(np.min(a)//1000*1000, ylim_low)
-
-            ax.set_ylim((ylim_low, ylim_upp))
-            ax.set_xlabel('epoch')
-            ax.grid(True)
-            fig.legend()
-            fig.savefig('loss1.png')
-
-    finally:
-        plt.close(fig)
-        sleep(10)
-
-
-def lr_drop_ex(alpha, start=200):
-    def f_(trainer):
-        epoch = trainer.updater.epoch
-        if epoch < start:
-            return
-        # trainer.updater.get_optimizer('main').alpha *= 0.1
-        # alpha_new = alpha * max(0.8**max((epoch-start)//50+1, 0), 0.1)
-        alpha_new = alpha * 0.1
-        trainer.updater.get_optimizer('main').alpha = alpha_new
-    return f_
-
-
-def pause_ex(trainer):
-    while os.path.isfile(os.path.join(trainer.out, 'pause')):
-        print('[pause]', end=' \r')
-        sleep(10)
 
 
 def train_model(model, train_iter, valid_iter, epoch=10, out='__result__',
@@ -209,100 +160,38 @@ def train_model(model, train_iter, valid_iter, epoch=10, out='__result__',
 
 ################################################################################
 
-def check_snapshot(out, show=False):
-    # モデルのパスを取得
-    respath = ut.select_file(out, key=r'res_.*', idx=None)
-    print('path:', respath)
-    file = ut.select_file(respath, key=r'snapshot_.*', idx=None)
-    print('file:', file)
-
-    if show:
-        # npz保存名確認
-        with np.load(file) as npzfile:
-            for f in npzfile:
-                print(f)
-                continue
-                if f[-1] == 'W':
-                    print(f)
-                    print(npzfile[f].shape)
-    return file
-
-
-def get_task_data(casename, batchsize):
+def get_data(casename, batchsize):
     def f_(it):
         return [x[0].reshape(1, 28, 28) for x in it]
 
     train, test = map(f_, chainer.datasets.get_mnist())
-    train_iter = chainer.iterators.SerialIterator(train, batchsize)
-    test_iter = chainer.iterators.SerialIterator(test, batchsize,
-                                                 repeat=False, shuffle=False)
     sample = train[0][None, ...]
-    model = M_.get_model(casename, sample=sample)
+    model = M_.get_model('case10_0', sample=sample)
 
     return model, train_iter, test_iter
 
 
-def process0(casename):
-    ''' オートエンコーダ学習 '''
-
-    # 学習パラメータ定義
-    epoch = 30
-    batchsize = 100
-    logdir = f'__result__/{ut.snow}'
-    model, train_iter, valid_iter = get_task_data(casename, batchsize)
-    train_model(model, train_iter, valid_iter, epoch=epoch, out=logdir,
-                alpha=0.01)
-
-
-def process0_resume(casename, out, init_all=True, new_out=False):
-    ''' オートエンコーダ学習 '''
-
-    # 学習パラメータ定義
-    epoch = 30
-    batchsize = 100
+def plot0(out):
     init_file = check_snapshot(out)
-    if new_out:
-        logdir = f'__result__/{ut.snow}'
-    else:
-        logdir = os.path.dirname(init_file)
     model, train_iter, valid_iter = get_task_data(batchsize)
-    train_model(model, train_iter, valid_iter, epoch=epoch, out=logdir,
-                init_file=init_file, alpha=0.01, init_all=init_all)
+    chainer.serializers.load_npz(init_file, model, path='updater/model:main/')
+
+    with V_.FigDriver() as fd:
+        data = train
+        fd.plot()
 
 
 def task0(*args, **kwargs):
-    ''' task0: 学習メイン '''
-
-    error = None
-    casename = kwargs.get('case', '')
 
     try:
-        resume = kwargs.get('resume', '')
-        if resume:
-            init_all = not resume.startswith('m')
-            new_out = 'new' in resume
-            process0_resume(casename, init_all=init_all, new_out=new_out)
-
-        else:
-            process0(casename)
+        out = ut.select_file('__result__')
+        plot0(out)
 
     except Exception as e:
         error = e
         tb = traceback.format_exc()
         print('Error:', error)
         print(tb)
-
-    if kwargs.get('sw', 0) < 3600:
-        return
-
-    with ut.EmailIO(None, 'ae_chainer: Task is Complete') as e:
-        print(sys._getframe().f_code.co_name, file=e)
-        print(ut.strnow(), file=e)
-        if 'sw' in kwargs:
-            print('Elapsed:', kwargs['sw'], file=e)
-        if error:
-            print('Error:', error)
-            print(tb)
 
 
 ################################################################################

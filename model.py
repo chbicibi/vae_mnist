@@ -528,9 +528,6 @@ def get_model_case9_4():
 
 
 def get_model_case10_0():
-    ''' VAE
-    z: 64dim
-    '''
     model = NA_.CAEList(
         NA_.CAEChain(None, 16, activation=(F.sigmoid, None), ksize=3), # => 14
         NA_.CAEChain(None, 32, ksize=3), # => 7
@@ -539,6 +536,34 @@ def get_model_case10_0():
         NA_.LAEChain(None, 64),
         NA_.LAEChain(None, 16),
         NV_.VAEChain(None, 2))
+
+    loss = NV_.VAELoss(model, k=8)
+    return loss
+
+
+def get_model_case10_1():
+    model = NA_.CAEList(
+        NA_.CAEChain(None, 16, activation=(F.sigmoid, None), ksize=3), # => 14
+        NA_.CAEChain(None, 32, ksize=3), # => 7
+        NA_.CAEChain(None, 64, ksize=3), # => 4
+        NA_.CAEChain(None, 128, ksize=3), # => 2 => 512
+        NA_.LAEChain(None, 256),
+        NA_.LAEChain(None, 128),
+        NV_.VAEChain(None, 64))
+
+    loss = NV_.VAELoss(model, k=8)
+    return loss
+
+
+def get_model_case10_2():
+    model = NA_.CAEList(
+        NA_.CAEChain(None, 16, activation=(F.sigmoid, None), ksize=3), # => 14
+        NA_.CAEChain(None, 32, ksize=3), # => 7
+        NA_.CAEChain(None, 64, ksize=3), # => 4
+        NA_.CAEChain(None, 128, ksize=3), # => 2 => 512
+        NA_.LAEChain(None, 128),
+        NA_.LAEChain(None, 32),
+        NV_.VAEChain(None, 3))
 
     loss = NV_.VAELoss(model, k=8)
     return loss
