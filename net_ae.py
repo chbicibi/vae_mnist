@@ -39,7 +39,6 @@ class AEBase(object):
             self.to_cpu()
 
     def adapt(self, x):
-        return x
         self.adjust(device=self.device)
         if isinstance(x, C_.NDARRAY_TYPES):
             return self.xp.asarray(x, dtype=self.xp.float32)

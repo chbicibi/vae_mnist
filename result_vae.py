@@ -160,32 +160,47 @@ def train_model(model, train_iter, valid_iter, epoch=10, out='__result__',
 
 ################################################################################
 
-def get_data(casename, batchsize):
+def get_data(casename):
     def f_(it):
         return [x[0].reshape(1, 28, 28) for x in it]
 
     train, test = map(f_, chainer.datasets.get_mnist())
     sample = train[0][None, ...]
-    model = M_.get_model('case10_0', sample=sample)
+    model = M_.get_model(casename, sample=sample)
 
-    return model, train_iter, test_iter
+    return model, train, test
 
 
-def plot0(out):
+def asarray(data):
+    if isinstance(data, np.ndarray):
+        return data
+    elif isinstance(data, C_.xp.core.core.ndarray):
+        return chainer.cuda.to_cpu(data)
+    elif isinstance(data, chainer.Variable):
+        return asarray(data.array)
+    else:
+        raise TypeError(type(data))
+
+
+def plot0(casename, out):
     init_file = check_snapshot(out)
-    model, train_iter, valid_iter = get_task_data(batchsize)
+    model, train, valid = get_data(casename)
     chainer.serializers.load_npz(init_file, model, path='updater/model:main/')
 
-    with V_.FigDriver() as fd:
-        data = train
-        fd.plot()
+    with V_.FigDriver(1, 2) as fd:
+        for X in train:
+            Y = asarray(model.predict(X[None, ...])[0])
+            fd[0].imshow(X[0])
+            fd[1].imshow(Y[0])
+            plt.pause(0.1)
 
 
 def task0(*args, **kwargs):
+    casename = kwargs.get('case') or 'case10_0'
 
     try:
-        out = ut.select_file('__result__')
-        plot0(out)
+        out = '__result__'
+        plot0(casename, out)
 
     except Exception as e:
         error = e

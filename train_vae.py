@@ -211,7 +211,7 @@ def train_model(model, train_iter, valid_iter, epoch=10, out='__result__',
 
 def check_snapshot(out, show=False):
     # モデルのパスを取得
-    respath = ut.select_file(out, key=r'res_.*', idx=None)
+    respath = ut.select_file(out, idx=None)
     print('path:', respath)
     file = ut.select_file(respath, key=r'snapshot_.*', idx=None)
     print('file:', file)

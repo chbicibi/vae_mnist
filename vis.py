@@ -32,7 +32,7 @@ class FigDriver(object):
         return len(self.axes)
 
     def __getitem__(self, key):
-        return self.axes(key)
+        return self.axes[key]
 
     def __enter__(self):
         return self

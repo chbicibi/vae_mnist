@@ -86,7 +86,7 @@ class VAELoss(chainer.Chain, NA_.AEBase):
     def predict(self, x, **kwargs):
         x = self.adapt(x)
         with chainer.using_config('train', False), chainer.no_backprop_mode():
-            return F.sigmoid(self.predictor(xa, inference=True, **kwargs))
+            return F.sigmoid(self.predictor(x, inference=True, **kwargs))
 
     @property
     def link(self):
