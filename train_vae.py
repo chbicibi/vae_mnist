@@ -248,7 +248,7 @@ def process0(casename):
     # 学習パラメータ定義
     epoch = 30
     batchsize = 100
-    logdir = f'__result__/{ut.snow}'
+    logdir = f'__result__/{casename}_{ut.snow}'
     model, train_iter, valid_iter = get_task_data(casename, batchsize)
     train_model(model, train_iter, valid_iter, epoch=epoch, out=logdir,
                 alpha=0.01)
@@ -262,7 +262,7 @@ def process0_resume(casename, out, init_all=True, new_out=False):
     batchsize = 100
     init_file = check_snapshot(out)
     if new_out:
-        logdir = f'__result__/{ut.snow}'
+        logdir = f'__result__/{casename}_{ut.snow}'
     else:
         logdir = os.path.dirname(init_file)
     model, train_iter, valid_iter = get_task_data(batchsize)

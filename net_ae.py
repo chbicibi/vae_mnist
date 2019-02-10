@@ -28,7 +28,7 @@ DEBUG1 = True # maybe_init
 # ベースネットワーク
 ################################################################################
 
-class AEBase(object):
+class AEMixin(object):
 
     def adjust(self, device=None):
         if device is None:
@@ -58,7 +58,7 @@ class AEBase(object):
 # 損失計算
 ################################################################################
 
-class AELoss(L.Classifier, AEBase):
+class AELoss(L.Classifier, AEMixin):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, lossfun=F.mean_squared_error, **kwargs)
@@ -66,6 +66,7 @@ class AELoss(L.Classifier, AEBase):
         # with self.init_scope():
         #     self.predictor = predictor
 
+        self.name = 'ae'
         self.compute_accuracy = False
         self.adjust()
 
@@ -92,7 +93,7 @@ class AELoss(L.Classifier, AEBase):
 
 ################################################################################
 
-class LAEChain(chainer.Chain, AEBase):
+class LAEChain(chainer.Chain, AEMixin):
     ''' 単層エンコーダ+デコーダ(全結合ネットワーク)
     '''
 
@@ -191,7 +192,7 @@ class LAEChain(chainer.Chain, AEBase):
         self.adjust(device=self.device)
 
 
-class CAEChain(chainer.Chain, AEBase):
+class CAEChain(chainer.Chain, AEMixin):
     ''' 単層エンコーダ+デコーダ(畳み込みネットワーク)
     引数:
         in_channels
@@ -199,7 +200,7 @@ class CAEChain(chainer.Chain, AEBase):
         use_indices(bool): maxpoolのインデックス情報をキャッシュ
     '''
 
-    def __init__(self, in_channels, out_channels, ksize=5, padding=True,
+    def __init__(self, in_channels, out_channels, ksize=3, padding=True,
                  activation=F.sigmoid, use_indices=False, batch_norm=True,
                  **kwargs):
         super().__init__()
@@ -368,7 +369,7 @@ class CAEChainM(CAEChain):
 
 ################################################################################
 
-class CAEList(chainer.ChainList, AEBase):
+class CAEList(chainer.ChainList, AEMixin):
     ''' 単層エンコーダ+デコーダの直列リスト
     '''
 

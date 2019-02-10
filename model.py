@@ -527,54 +527,100 @@ def get_model_case9_4():
     return loss
 
 
-def get_model_case10_0():
+################################################################################
+
+def get_model_case10_0(model_type='vae'):
+    if model_type == 'vae':
+        last_layer = NV_.VAEChain
+        loss_chain = NV_.VAELoss
+    else:
+        last_layer = NA_.LAEChain
+        loss_chain = NA_.AELoss
+
     model = NA_.CAEList(
-        NA_.CAEChain(None, 16, activation=(F.sigmoid, None), ksize=3), # => 14
-        NA_.CAEChain(None, 32, ksize=3), # => 7
-        NA_.CAEChain(None, 64, ksize=3), # => 4
-        NA_.CAEChain(None, 128, ksize=3), # => 2 => 512
+        NA_.CAEChain(None, 16, activation=(F.sigmoid, None)), # => 14
+        NA_.CAEChain(None, 32), # => 7
+        NA_.CAEChain(None, 64), # => 4
+        NA_.CAEChain(None, 128), # => 2 => 512
         NA_.LAEChain(None, 64),
         NA_.LAEChain(None, 16),
-        NV_.VAEChain(None, 2))
+        last_layer(None, 2, activation=(None, F.sigmoid)))
 
-    loss = NV_.VAELoss(model, k=8)
-    return loss
+    return loss_chain(model)
 
 
-def get_model_case10_1():
+def get_model_case10_1(model_type='vae'):
+    if model_type == 'vae':
+        last_layer = NV_.VAEChain
+        loss_chain = NV_.VAELoss
+    else:
+        last_layer = NA_.LAEChain
+        loss_chain = NA_.AELoss
+
     model = NA_.CAEList(
-        NA_.CAEChain(None, 16, activation=(F.sigmoid, None), ksize=3), # => 14
-        NA_.CAEChain(None, 32, ksize=3), # => 7
-        NA_.CAEChain(None, 64, ksize=3), # => 4
-        NA_.CAEChain(None, 128, ksize=3), # => 2 => 512
+        NA_.CAEChain(None, 16, activation=(F.sigmoid, None)), # => 14
+        NA_.CAEChain(None, 32), # => 7
+        NA_.CAEChain(None, 64), # => 4
+        NA_.CAEChain(None, 128), # => 2 => 512
         NA_.LAEChain(None, 256),
         NA_.LAEChain(None, 128),
-        NV_.VAEChain(None, 64))
+        last_layer(None, 64))
 
-    loss = NV_.VAELoss(model, k=8)
-    return loss
+    return loss_chain(model)
 
 
-def get_model_case10_2():
+def get_model_case10_2(model_type='vae'):
+    if model_type == 'vae':
+        last_layer = NV_.VAEChain
+        loss_chain = NV_.VAELoss
+    else:
+        last_layer = NA_.LAEChain
+        loss_chain = NA_.AELoss
+
     model = NA_.CAEList(
-        NA_.CAEChain(None, 16, activation=(F.sigmoid, None), ksize=3), # => 14
-        NA_.CAEChain(None, 32, ksize=3), # => 7
-        NA_.CAEChain(None, 64, ksize=3), # => 4
-        NA_.CAEChain(None, 128, ksize=3), # => 2 => 512
+        NA_.CAEChain(None, 16, activation=(F.sigmoid, None)), # => 14
+        NA_.CAEChain(None, 32), # => 7
+        NA_.CAEChain(None, 64), # => 4
+        NA_.CAEChain(None, 128), # => 2 => 512
         NA_.LAEChain(None, 128),
         NA_.LAEChain(None, 32),
-        NV_.VAEChain(None, 3))
+        last_layer(None, 3))
 
-    loss = NV_.VAELoss(model, k=8)
-    return loss
+    return loss_chain(model)
+
+
+def get_model_case10_fc(model_type='vae'):
+    if model_type == 'vae':
+        last_layer = NV_.VAEChain
+        loss_chain = NV_.VAELoss
+    else:
+        last_layer = NA_.LAEChain
+        loss_chain = NA_.AELoss
+
+    model = NA_.CAEList(
+        NA_.LAEChain(None, 196, activation=(F.sigmoid, None)),
+        NA_.LAEChain(None, 49),
+        NA_.LAEChain(None, 7),
+        last_layer(None, 2))
+
+    return loss_chain(model)
 
 
 def get_model(name, sample=None):
     # 関数名自動取得に変更
 
+    if 'vae' in name:
+        model_type = 'vae'
+        name = name.replace('vae', '')
+    elif 'ae' in name:
+        model_type = 'ae'
+        name = name.replace('ae', '')
+    else:
+        model_type = 'vae'
+
     function_name = 'get_model_' + name
     if function_name in globals():
-        model = globals()[function_name]()
+        model = globals()[function_name](model_type=model_type)
     else:
         raise NameError('Function Not Found:', function_name)
 

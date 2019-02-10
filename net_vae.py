@@ -12,7 +12,7 @@ import net_ae as NA_
 
 ################################################################################
 
-class VAELoss(chainer.Chain, NA_.AEBase):
+class VAELoss(chainer.Chain, NA_.AEMixin):
 
     def __init__(self, predictor, beta=1.0, k=1, **kwargs):
         super().__init__()
@@ -95,7 +95,7 @@ class VAELoss(chainer.Chain, NA_.AEBase):
 
 ################################################################################
 
-class VAEChain(chainer.Chain, NA_.AEBase):
+class VAEChain(chainer.Chain, NA_.AEMixin):
     ''' 単層エンコーダ+デコーダ(VAE全結合ネットワーク)
     '''
 

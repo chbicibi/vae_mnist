@@ -35,130 +35,6 @@ SRC_FILENAME = os.path.splitext(SRC_FILE)[0]
 
 
 ################################################################################
-# 学習
-################################################################################
-
-
-def train_model(model, train_iter, valid_iter, epoch=10, out='__result__',
-                init_file=None, fix_trained=False, alpha=0.001, init_all=True):
-    learner = model
-
-    # 最適化手法の選択
-    optimizer = O.Adam(alpha=alpha).setup(learner)
-
-    if fix_trained:
-        for m in model[:-1]:
-            m.disable_update()
-
-    # Updaterの準備 (パラメータを更新)
-    updater = T.StandardUpdater(train_iter, optimizer, device=C_.DEVICE)
-
-    # Trainerの準備
-    trainer = T.Trainer(updater, stop_trigger=(epoch, 'epoch'), out=out)
-
-    # TrainerにExtensionを追加する
-    ## 検証
-    trainer.extend(E.Evaluator(valid_iter, learner, device=C_.DEVICE),
-                   name='val')
-
-    ## モデルパラメータの統計を記録する
-    trainer.extend(E.ParameterStatistics(learner.predictor,
-                                                  {'std': np.std},
-                                                  prefix='links'))
-
-    ## 学習率を記録する
-    trainer.extend(E.observe_lr())
-
-    ## 学習経過を画面出力
-    trainer.extend(
-        E.PrintReport(
-            ['epoch', 'main/loss', 'val/main/loss', 'elapsed_time', 'lr']))
-
-    ## ログ記録 (他のextensionsの結果も含まれる)
-    trainer.extend(E.LogReport(log_name='log.json'))
-
-    ## 学習経過を画像出力
-    if C_.OS_IS_WIN:
-        def ex_pname(link):
-            ls = list(link.links())[1:]
-            if not ls:
-                names = (p.name for p in link.params())
-            else:
-                names = chain(*map(ex_pname, ls))
-            return [f'{link.name}/{n}' for n in names]
-
-        def register(keys, file_name):
-            trainer.extend(E.PlotReport(keys,# x_key='epoch',
-                                                 file_name=file_name,
-                                                 marker=None))
-
-        register('lr', file_name='lr.png')
-        register(['main/loss', 'val/main/loss'], file_name='loss.png')
-
-        if 'vae' in learner.name:
-            register(['main/reconstr', 'val/main/reconstr'],
-                     file_name='reconstr.png')
-
-            register(['main/kl_penalty', 'val/main/kl_penalty'],
-                     file_name='kl_penalty.png')
-
-            register(['main/mse_vel', 'val/main/mse_vel'],
-                     file_name='mse_vel.png')
-
-            register(['main/mse_vor', 'val/main/mse_vor'],
-                     file_name='mse_vor.png')
-
-        for link in learner.predictor:
-            param_names = ex_pname(link)
-            for d in ('data', 'grad'):
-                observe_keys_std = [f'links/predictor/{key}/{d}/std'
-                                    for key in param_names]
-                for l in ('enc', 'dec', 'bne', 'bnd'):
-                    file_name = f'std_{d}_{l}_{link.name}.png'
-                    f_ = lambda s: l in s# or f'bn{l[0]}' in s
-                    keys = list(filter(f_, observe_keys_std))
-                    register(keys, file_name=file_name)
-
-    ## ネットワーク形状をdot言語で出力
-    ## 可視化コード: ```dot -Tpng cg.dot -o [出力ファイル]```
-    trainer.extend(E.dump_graph('main/loss'))
-
-    ## トレーナーオブジェクトをシリアライズし、出力ディレクトリに保存
-    trainer.extend(
-        E.snapshot(filename='snapshot_epoch-{.updater.epoch}.model'))
-
-    ## プログレスバー
-    if C_.SHOW_PROGRESSBAR:
-        trainer.extend(E.ProgressBar())
-
-    if init_file:
-        print('loading snapshot:', init_file)
-        try:
-            if init_all:
-                chainer.serializers.load_npz(init_file, trainer)
-
-            else:
-                chainer.serializers.load_npz(init_file, learner,
-                                             path='updater/model:main/')
-        except KeyError:
-            raise
-
-    # 自作Extension
-    # trainer.extend(plot_loss_ex, trigger=(1, 'epoch'))
-    # trainer.extend(lr_drop_ex(alpha), trigger=(1, 'epoch'))
-    trainer.extend(pause_ex, trigger=(1, 'iteration'))
-
-    # 学習を開始する
-    try:
-        trainer.run()
-    except:
-        print('trainer except')
-        raise
-    finally:
-        print('trainer end')
-
-
-################################################################################
 
 def get_data(casename):
     def f_(it):
@@ -188,11 +64,15 @@ def plot0(casename, out):
     chainer.serializers.load_npz(init_file, model, path='updater/model:main/')
 
     with V_.FigDriver(1, 2) as fd:
-        for X in train:
-            Y = asarray(model.predict(X[None, ...])[0])
-            fd[0].imshow(X[0])
-            fd[1].imshow(Y[0])
-            plt.pause(0.1)
+        with chainer.using_config('train', False), chainer.no_backprop_mode():
+            for X in train:
+                Z = asarray(model.encode(X[None, ...], inference=True)[0])
+                # Y = asarray(model.predict(X[None, ...])[0])
+                Y = asarray(model.decode(Z[None, ...], inference=True)[0])
+                print(Z)
+                fd[0].imshow(X[0])
+                fd[1].imshow(Y[0])
+                plt.pause(0.1)
 
 
 def task0(*args, **kwargs):
