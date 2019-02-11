@@ -40,6 +40,10 @@ class FigDriver(object):
     def __exit__(self, *args, **kwargs):
         plt.close(self.fig)
 
+    def cla(self):
+        for ax in self.axes:
+            ax.cla()
+
 
 def remove_border(ax):
     for d in ['top', 'bottom', 'left', 'right']:
