@@ -7,6 +7,7 @@ import sys
 import traceback
 from itertools import chain
 from operator import itemgetter
+from time import sleep
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -31,6 +32,7 @@ SRC_DIR = os.path.dirname(__file__)
 SRC_FILE = os.path.basename(__file__)
 SRC_FILENAME = os.path.splitext(SRC_FILE)[0]
 
+LOCK_FILE = os.path.join(SRC_DIR, f'{ut.snow}.lock')
 
 ################################################################################
 # 学習
@@ -209,7 +211,7 @@ def train_model(model, train_iter, valid_iter, epoch=10, out='__result__',
 
 ################################################################################
 
-def check_snapshot(out, show=False):
+def check_snapshot(out, kw='', show=False):
     # モデルのパスを取得
     respath = ut.select_file(out, idx=None)
     print('path:', respath)
@@ -242,30 +244,43 @@ def get_task_data(casename, batchsize):
     return model, train_iter, test_iter
 
 
+def get_method(method, *args, **kwargs):
+    return lambda obj: getattr(method, obj)(*args, **kwargs)
+
+
 def process0(casename):
     ''' オートエンコーダ学習 '''
 
     # 学習パラメータ定義
-    epoch = 30
-    batchsize = 100
-    logdir = f'__result__/{casename}_{ut.snow}'
+    epoch = 500
+    batchsize = 500
+    logdir = f'__result__/{casename}#{ut.snow}'
     model, train_iter, valid_iter = get_task_data(casename, batchsize)
-    train_model(model, train_iter, valid_iter, epoch=epoch, out=logdir,
-                alpha=0.01)
+
+    while any(map(get_method('endswith', '.lock'), os.listdir(SRC_DIR))):
+        sleep(10)
+
+    try:
+        with open(LOCK_FILE, 'w'):
+            pass
+        train_model(model, train_iter, valid_iter, epoch=epoch, out=logdir,
+                    alpha=0.01)
+    finally:
+        os.remove(LOCK_FILE)
 
 
 def process0_resume(casename, out, init_all=True, new_out=False):
     ''' オートエンコーダ学習 '''
 
     # 学習パラメータ定義
-    epoch = 30
-    batchsize = 100
+    epoch = 500
+    batchsize = 500
     init_file = check_snapshot(out)
     if new_out:
-        logdir = f'__result__/{casename}_{ut.snow}'
+        logdir = f'__result__/{casename}#{ut.snow}'
     else:
         logdir = os.path.dirname(init_file)
-    model, train_iter, valid_iter = get_task_data(batchsize)
+    model, train_iter, valid_iter = get_task_data(casename, batchsize)
     train_model(model, train_iter, valid_iter, epoch=epoch, out=logdir,
                 init_file=init_file, alpha=0.01, init_all=init_all)
 
@@ -281,7 +296,8 @@ def task0(*args, **kwargs):
         if resume:
             init_all = not resume.startswith('m')
             new_out = 'new' in resume
-            process0_resume(casename, init_all=init_all, new_out=new_out)
+            process0_resume(casename, out='__result__', init_all=init_all,
+                            new_out=new_out)
 
         else:
             process0(casename)

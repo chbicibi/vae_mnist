@@ -1,6 +1,7 @@
 import argparse
 import glob
 import os
+import re
 import shutil
 from functools import reduce
 from itertools import chain
@@ -589,7 +590,7 @@ def get_model_case10_2(model_type='vae'):
     return loss_chain(model)
 
 
-def get_model_case10_fc(model_type='vae'):
+def get_model_case10_fc_z2(model_type='vae'):
     if model_type == 'vae':
         last_layer = NV_.VAEChain
         loss_chain = NV_.VAELoss
@@ -611,10 +612,11 @@ def get_model(name, sample=None):
 
     if 'vae' in name:
         model_type = 'vae'
-        name = name.replace('vae', '')
+        name = re.sub(r'_?vae', '', name)
+        print(name)
     elif 'ae' in name:
         model_type = 'ae'
-        name = name.replace('ae', '')
+        name = re.sub(r'_?ae', '', name)
     else:
         model_type = 'vae'
 
@@ -627,6 +629,8 @@ def get_model(name, sample=None):
     if sample is not None:
         # モデル初期化
         print('init model')
+        if sample.ndim == 3:
+            sample = sample[None, ...]
         with chainer.using_config('train', False), chainer.no_backprop_mode():
             model.predictor(model.xp.asarray(sample), show_shape=True)
     return model

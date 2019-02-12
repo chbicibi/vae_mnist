@@ -2,10 +2,11 @@ import argparse
 import glob
 import itertools
 import os
+import re
 import shutil
 import sys
 import traceback
-from itertools import chain
+from itertools import chain, islice
 from operator import itemgetter
 
 import numpy as np
@@ -36,11 +37,16 @@ SRC_FILENAME = os.path.splitext(SRC_FILE)[0]
 
 ################################################################################
 
-def get_data(casename):
+def get_shaped_mnist():
     def f_(it):
-        return [x[0].reshape(1, 28, 28) for x in it]
+        return [(x[0].reshape(1, 28, 28), x[1]) for x in it]
 
     train, test = map(f_, chainer.datasets.get_mnist())
+    return train, test
+
+
+def get_data(casename):
+    train, test = (list(map(itemgetter(0), d)) for d in get_shaped_mnist())
     sample = train[0][None, ...]
     model = M_.get_model(casename, sample=sample)
 
@@ -62,10 +68,15 @@ def plot0(casename, out):
     init_file = check_snapshot(out)
     model, train, valid = get_data(casename)
     chainer.serializers.load_npz(init_file, model, path='updater/model:main/')
+    data_mnist = get_shaped_mnist()[1]
 
+    label_no = 0
     with V_.FigDriver(1, 2) as fd:
         with chainer.using_config('train', False), chainer.no_backprop_mode():
-            for X in train:
+            for X, label in data_mnist:
+                if not label == label_no:
+                    continue
+                fd.cla()
                 Z = asarray(model.encode(X[None, ...], inference=True)[0])
                 # Y = asarray(model.predict(X[None, ...])[0])
                 Y = asarray(model.decode(Z[None, ...], inference=True)[0])
@@ -91,6 +102,34 @@ def task0(*args, **kwargs):
 
 ################################################################################
 
+def task1(*args, **kwargs):
+    data_mnist = get_shaped_mnist()[0]
+    init_file = check_snapshot('__result__')
+
+    casename = kwargs.get('case') or re.search(r'case.+?(?=[# ])', init_file)[0]
+    model = M_.get_model(casename, sample=data_mnist[0][0])
+    chainer.serializers.load_npz(init_file, model, path='updater/model:main/')
+
+    def f_(label_no=None):
+        with chainer.using_config('train', False), chainer.no_backprop_mode():
+            for data, label in data_mnist:
+                if label_no is not None and not label == label_no:
+                    continue
+                X = data[None, ...]
+                Z = asarray(model.encode(X, inference=True)[0])
+                yield Z
+
+    # a = list(islice(f_(), 10))
+    with V_.FigDriver(1, 1) as fd:
+        for i in range(10):
+            data = np.array(list(islice(f_(i), 100)))
+            fd[0].scatter(*zip(data.T), label=f'{i}')
+        fd.fig.legend()
+        plt.show()
+
+
+################################################################################
+
 def __test__():
     pass
 
@@ -98,7 +137,7 @@ def __test__():
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', nargs='?', default='0',
-                        choices=['', '0'],
+                        choices=['', '0', '1'],
                         help='Number of main procedure')
     parser.add_argument('--case', '-c', default='',
                         help='Training case name')
@@ -140,10 +179,10 @@ def main():
         # print(vars(args))
         __test__()
 
-    elif args.mode in '0123456789':
+    elif args.mode:
         taskname = 'task' + args.mode
-        if taskname in globals():
-            f_ = globals().get(taskname)
+        f_ = globals().get(taskname)
+        if f_:
             with ut.stopwatch(taskname) as sw:
                 f_(**vars(args), sw=sw)
 
