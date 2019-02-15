@@ -3,6 +3,7 @@
 *.mp4
 *.png
 *.gif
+*.lock
 __*__
 __*__/
 config/

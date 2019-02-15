@@ -47,7 +47,7 @@ def get_shaped_mnist():
 
 def get_data(casename):
     train, test = (list(map(itemgetter(0), d)) for d in get_shaped_mnist())
-    sample = train[0][None, ...]
+    sample = train[0]
     model = M_.get_model(casename, sample=sample)
 
     return model, train, test
@@ -66,15 +66,18 @@ def asarray(data):
 
 def plot0(casename, out):
     init_file = check_snapshot(out)
+    if casename == 'auto':
+        casename = re.search(r'case.+?(?=[# ])', init_file)[0]
+
     model, train, valid = get_data(casename)
     chainer.serializers.load_npz(init_file, model, path='updater/model:main/')
     data_mnist = get_shaped_mnist()[1]
 
-    label_no = 0
+    label_no = 9
     with V_.FigDriver(1, 2) as fd:
         with chainer.using_config('train', False), chainer.no_backprop_mode():
             for X, label in data_mnist:
-                if not label == label_no:
+                if label_no is not None and not label == label_no:
                     continue
                 fd.cla()
                 Z = asarray(model.encode(X[None, ...], inference=True)[0])
@@ -87,7 +90,7 @@ def plot0(casename, out):
 
 
 def task0(*args, **kwargs):
-    casename = kwargs.get('case') or 'case10_0'
+    casename = kwargs.get('case') or 'auto'
 
     try:
         out = '__result__'
@@ -122,7 +125,7 @@ def task1(*args, **kwargs):
     # a = list(islice(f_(), 10))
     with V_.FigDriver(1, 1) as fd:
         for i in range(10):
-            data = np.array(list(islice(f_(i), 100)))
+            data = np.array(list(islice(f_(i), 100)))[:, :2]
             fd[0].scatter(*zip(data.T), label=f'{i}')
         fd.fig.legend()
         plt.show()

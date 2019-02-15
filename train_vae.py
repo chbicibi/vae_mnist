@@ -34,6 +34,31 @@ SRC_FILENAME = os.path.splitext(SRC_FILE)[0]
 
 LOCK_FILE = os.path.join(SRC_DIR, f'{ut.snow}.lock')
 
+
+################################################################################
+
+class Lock(object):
+    """docstring for Lock"""
+    def __init__(self, wait=False):
+        self.wait = wait
+        self.lock_file = os.path.join(SRC_DIR, f'{ut.snow}.lock')
+
+    def __enter__(self):
+        if self.wait:
+            while any(map(getmethod('endswith', '.lock'), os.listdir(SRC_DIR))):
+                sleep(10)
+
+        with open(self.lock_file, 'w') as f:
+            print(ut.strnow(), file=f)
+
+    def __exit__(self, *args, **kwargs):
+        os.remove(self.lock_file)
+
+
+def getmethod(method, *args, **kwargs):
+    return lambda obj: getattr(obj, method)(*args, **kwargs)
+
+
 ################################################################################
 # 学習
 ################################################################################
@@ -244,9 +269,6 @@ def get_task_data(casename, batchsize):
     return model, train_iter, test_iter
 
 
-def get_method(method, *args, **kwargs):
-    return lambda obj: getattr(method, obj)(*args, **kwargs)
-
 
 def process0(casename):
     ''' オートエンコーダ学習 '''
@@ -257,16 +279,9 @@ def process0(casename):
     logdir = f'__result__/{casename}#{ut.snow}'
     model, train_iter, valid_iter = get_task_data(casename, batchsize)
 
-    while any(map(get_method('endswith', '.lock'), os.listdir(SRC_DIR))):
-        sleep(10)
-
-    try:
-        with open(LOCK_FILE, 'w'):
-            pass
+    with Lock():
         train_model(model, train_iter, valid_iter, epoch=epoch, out=logdir,
-                    alpha=0.01)
-    finally:
-        os.remove(LOCK_FILE)
+                    alpha=0.001)
 
 
 def process0_resume(casename, out, init_all=True, new_out=False):
@@ -281,8 +296,10 @@ def process0_resume(casename, out, init_all=True, new_out=False):
     else:
         logdir = os.path.dirname(init_file)
     model, train_iter, valid_iter = get_task_data(casename, batchsize)
-    train_model(model, train_iter, valid_iter, epoch=epoch, out=logdir,
-                init_file=init_file, alpha=0.01, init_all=init_all)
+
+    with Lock():
+        train_model(model, train_iter, valid_iter, epoch=epoch, out=logdir,
+                    init_file=init_file, alpha=0.001, init_all=init_all)
 
 
 def task0(*args, **kwargs):

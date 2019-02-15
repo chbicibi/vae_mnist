@@ -590,6 +590,10 @@ def get_model_case10_2(model_type='vae'):
     return loss_chain(model)
 
 
+def get_model_case10_conv_z2(model_type='vae'):
+    return get_model_case10_0(model_type=model_type)
+
+
 def get_model_case10_fc_z2(model_type='vae'):
     if model_type == 'vae':
         last_layer = NV_.VAEChain
@@ -621,6 +625,8 @@ def get_model(name, sample=None):
         model_type = 'vae'
 
     function_name = 'get_model_' + name
+    print('function:', function_name)
+
     if function_name in globals():
         model = globals()[function_name](model_type=model_type)
     else:
